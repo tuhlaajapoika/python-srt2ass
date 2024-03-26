@@ -41,7 +41,6 @@ def srt2ass(input_file):
     if u'\ufeff' in tmp:
         tmp = tmp.replace(u'\ufeff', '')
         utf8bom = u'\ufeff'
-    
     tmp = tmp.replace("\r", "")
     lines = [x.strip() for x in tmp.split("\n") if x.strip()]
     subLines = ''
@@ -73,6 +72,7 @@ def srt2ass(input_file):
 
     subLines += tmpLines + "\n"
 
+    # TODO: replace ... with \u2026
     subLines = re.sub(r'\d(\d:\d{2}:\d{2}),(\d{2})\d', '\\1.\\2', subLines)
     subLines = re.sub(r'\s+-->\s+', ',', subLines)
     # replace style
@@ -87,10 +87,11 @@ Title:
 ScriptType: v4.00+
 Collisions: Normal
 PlayDepth: 0
+ScaledBorderAndShadow: Yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: SubStyle,Arial,20,&H0300FFFF,&H00FFFFFF,&H00000000,&H02000000,-1,0,0,0,100,100,0,0,3,2,0,2,10,10,10,1
+Style: SubStyle,Arial,16,&H00E4E4E4,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.4,1.4,2,10,10,40
 
 [Events]
 Format: Layer, Start, End, Style, Actor, MarginL, MarginR, MarginV, Effect, Text'''
