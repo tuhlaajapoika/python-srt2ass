@@ -42,6 +42,7 @@ def srt2ass(input_file):
         tmp = tmp.replace(u'\ufeff', '')
         utf8bom = u'\ufeff'
     tmp = tmp.replace("\r", "")
+    tmp = tmp.replace("...", u'\u2026')
     lines = [x.strip() for x in tmp.split("\n") if x.strip()]
     subLines = ''
     tmpLines = ''
@@ -60,19 +61,18 @@ def srt2ass(input_file):
         else:
             if re.match('-?\d\d:\d\d:\d\d', line):
                 line = line.replace('-0', '0')
-                tmpLines += 'Dialogue: 0,' + line + ',SubStyle,,0,0,0,,'
+                tmpLines += 'Dialogue: 0,' + line + ',Default,,0,0,0,,'
             else:
                 if lineCount < 2:
                     tmpLines += line
                 else:
-                    tmpLines += "\n" + line
+                    tmpLines += "\\N" + line
             lineCount += 1
         ln += 1
 
 
     subLines += tmpLines + "\n"
 
-    # TODO: replace ... with \u2026
     subLines = re.sub(r'\d(\d:\d{2}:\d{2}),(\d{2})\d', '\\1.\\2', subLines)
     subLines = re.sub(r'\s+-->\s+', ',', subLines)
     # replace style
@@ -91,7 +91,7 @@ ScaledBorderAndShadow: Yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: SubStyle,Arial,16,&H00E4E4E4,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.4,1.4,2,10,10,40
+Style: Default,Arial,16,&H33DCF0FA,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.6,1.6,2,10,10,24,1
 
 [Events]
 Format: Layer, Start, End, Style, Actor, MarginL, MarginR, MarginV, Effect, Text'''
