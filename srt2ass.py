@@ -4,10 +4,11 @@
 # by: ewwink
 #
 
-import sys
+import argparse
 import os
 import re
 import codecs
+from pathlib import Path
 
 
 def fileopen(input_file):
@@ -19,17 +20,23 @@ def fileopen(input_file):
                 tmp = fd.read()
                 break
         except:
-            # print enc + ' failed'
+            # print(f"{enc} failed")
             continue
     return [tmp, enc]
 
 
-def srt2ass(input_file):
+def srt2ass(input_file, sub_position, sub_size):
+    if sub_position is None:
+        sub_position = 24  # Default subtitle position
+
+    if sub_size is None:
+        sub_size = 16  # Default subtitle size
+
     if ".ass" in input_file:
         return input_file
 
     if not os.path.isfile(input_file):
-        print(input_file + " not exist")
+        print(f"{input_file} does not exist")
         return
 
     src = fileopen(input_file)
@@ -90,7 +97,7 @@ def srt2ass(input_file):
         )
     )
     if is_hdr:
-        head_str = """[Script Info]
+        head_str = f"""[Script Info]
 ; This is an Advanced Sub Station Alpha v4+ script.
 Title:
 ScriptType: v4.00+
@@ -100,12 +107,12 @@ ScaledBorderAndShadow: Yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,16,&H00646464,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.4,1.4,2,10,10,24,1
+Style: Default,Arial,{sub_size},&H00646464,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.4,1.4,2,10,10,{sub_position},1
 
 [Events]
 Format: Layer, Start, End, Style, Actor, MarginL, MarginR, MarginV, Effect, Text"""
     else:
-        head_str = """[Script Info]
+        head_str = f"""[Script Info]
 ; This is an Advanced Sub Station Alpha v4+ script.
 Title:
 ScriptType: v4.00+
@@ -115,7 +122,7 @@ ScaledBorderAndShadow: Yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,16,&H33DCF0FA,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.4,1.4,2,10,10,24,1
+Style: Default,Arial,{sub_size},&H33DCF0FA,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.4,1.4,2,10,10,{sub_position},1
 
 [Events]
 Format: Layer, Start, End, Style, Actor, MarginL, MarginR, MarginV, Effect, Text"""
@@ -131,6 +138,38 @@ Format: Layer, Start, End, Style, Actor, MarginL, MarginR, MarginV, Effect, Text
     return output_file
 
 
-if len(sys.argv) > 1:
-    for name in sys.argv[1:]:
-        srt2ass(name)
+def main(args):
+    for file in args.input_list:
+        if not Path(file).is_file():
+            print(f"Could not read file: {file}")
+            exit(1)
+        srt2ass(file, args.position, args.size)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Convert subtitles from SubRip (SRT) to Advanced Sub Station Alpha (ASS)"
+    )
+    parser.add_argument(
+        "-i",
+        "--input",
+        nargs="+",
+        type=str,
+        dest="input_list",
+        help="File name",
+        required=True,
+    )
+    parser.add_argument(
+        "-pos",
+        "--position",
+        help="Set subtitle position from the bottom",
+        required=False,
+    )
+    parser.add_argument(
+        "-sz",
+        "--size",
+        help="Set subtitle size",
+        required=False,
+    )
+    arguments = parser.parse_args()
+    main(arguments)
