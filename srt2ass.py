@@ -12,7 +12,7 @@ import codecs
 
 def fileopen(input_file):
     encodings = ["utf-32", "utf-16", "utf-8", "cp1252", "gb2312", "gbk", "big5"]
-    tmp = ''
+    tmp = ""
     for enc in encodings:
         try:
             with codecs.open(input_file, mode="r", encoding=enc) as fd:
@@ -25,63 +25,72 @@ def fileopen(input_file):
 
 
 def srt2ass(input_file):
-    if '.ass' in input_file:
+    if ".ass" in input_file:
         return input_file
 
     if not os.path.isfile(input_file):
-        print(input_file + ' not exist')
+        print(input_file + " not exist")
         return
 
     src = fileopen(input_file)
     tmp = src[0]
     encoding = src[1]
-    src = ''
-    utf8bom = ''
+    src = ""
+    utf8bom = ""
 
-    if u'\ufeff' in tmp:
-        tmp = tmp.replace(u'\ufeff', '')
-        utf8bom = u'\ufeff'
+    if "\ufeff" in tmp:
+        tmp = tmp.replace("\ufeff", "")
+        utf8bom = "\ufeff"
     tmp = tmp.replace("\r", "")
-    tmp = tmp.replace("...", u'\u2026')
+    tmp = tmp.replace("...", "\u2026")
     lines = [x.strip() for x in tmp.split("\n") if x.strip()]
-    subLines = ''
-    tmpLines = ''
-    lineCount = 0
-    output_file = '.'.join(input_file.split('.')[:-1])
-    output_file += '.ass'
+    sub_lines = ""
+    tmp_lines = ""
+    line_count = 0
+    output_file = ".".join(input_file.split(".")[:-1])
+    output_file += ".ass"
 
     for ln in range(len(lines)):
         line = lines[ln]
-        if line.isdigit() and re.match('-?\d\d:\d\d:\d\d', lines[(ln+1)]):
-            if tmpLines:
-                subLines += tmpLines + "\n"
-            tmpLines = ''
-            lineCount = 0
+        if line.isdigit() and re.match("-?\d\d:\d\d:\d\d", lines[(ln + 1)]):
+            if tmp_lines:
+                sub_lines += tmp_lines + "\n"
+            tmp_lines = ""
+            line_count = 0
             continue
         else:
-            if re.match('-?\d\d:\d\d:\d\d', line):
-                line = line.replace('-0', '0')
-                tmpLines += 'Dialogue: 0,' + line + ',Default,,0,0,0,,'
+            if re.match("-?\d\d:\d\d:\d\d", line):
+                line = line.replace("-0", "0")
+                tmp_lines += "Dialogue: 0," + line + ",Default,,0,0,0,,"
             else:
-                if lineCount < 2:
-                    tmpLines += line
+                if line_count < 2:
+                    tmp_lines += line
                 else:
-                    tmpLines += "\\N" + line
-            lineCount += 1
+                    tmp_lines += "\\N" + line
+            line_count += 1
         ln += 1
 
+    sub_lines += tmp_lines + "\n"
 
-    subLines += tmpLines + "\n"
-
-    subLines = re.sub(r'\d(\d:\d{2}:\d{2}),(\d{2})\d', '\\1.\\2', subLines)
-    subLines = re.sub(r'\s+-->\s+', ',', subLines)
+    sub_lines = re.sub(r"\d(\d:\d{2}:\d{2}),(\d{2})\d", "\\1.\\2", sub_lines)
+    sub_lines = re.sub(r"\s+-->\s+", ",", sub_lines)
     # replace style
-    subLines = re.sub(r'<([ubi])>', "{\\\\\g<1>1}", subLines)
-    subLines = re.sub(r'</([ubi])>', "{\\\\\g<1>0}", subLines)
-    subLines = re.sub(r'<font\s+color="?#(\w{2})(\w{2})(\w{2})"?>', "{\\\\c&H\\3\\2\\1&}", subLines)
-    subLines = re.sub(r'</font>', "", subLines)
+    sub_lines = re.sub(r"<([ubi])>", "{\\\\\g<1>1}", sub_lines)
+    sub_lines = re.sub(r"</([ubi])>", "{\\\\\g<1>0}", sub_lines)
+    sub_lines = re.sub(
+        r'<font\s+color="?#(\w{2})(\w{2})(\w{2})"?>',
+        "{\\\\c&H\\3\\2\\1&}",
+        sub_lines,
+    )
+    sub_lines = re.sub(r"</font>", "", sub_lines)
 
-    head_str = '''[Script Info]
+    is_hdr = bool(
+        re.search(
+            r"(HDR|DV|DolbyVision|Dolby\.Vision|Dolby Vision)", input_file
+        )
+    )
+    if is_hdr:
+        head_str = """[Script Info]
 ; This is an Advanced Sub Station Alpha v4+ script.
 Title:
 ScriptType: v4.00+
@@ -91,19 +100,34 @@ ScaledBorderAndShadow: Yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,16,&H33DCF0FA,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.6,1.6,2,10,10,24,1
+Style: Default,Arial,16,&H00646464,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.4,1.4,2,10,10,24,1
 
 [Events]
-Format: Layer, Start, End, Style, Actor, MarginL, MarginR, MarginV, Effect, Text'''
+Format: Layer, Start, End, Style, Actor, MarginL, MarginR, MarginV, Effect, Text"""
+    else:
+        head_str = """[Script Info]
+; This is an Advanced Sub Station Alpha v4+ script.
+Title:
+ScriptType: v4.00+
+Collisions: Normal
+PlayDepth: 0
+ScaledBorderAndShadow: Yes
 
-    output_str = utf8bom + head_str + '\n' + subLines
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,16,&H33DCF0FA,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.4,1.4,2,10,10,24,1
+
+[Events]
+Format: Layer, Start, End, Style, Actor, MarginL, MarginR, MarginV, Effect, Text"""
+
+    output_str = utf8bom + head_str + "\n" + sub_lines
     output_str = output_str.encode(encoding)
 
-    with open(output_file, 'wb') as output:
+    with open(output_file, "wb") as output:
         output.write(output_str)
 
-    output_file = output_file.replace('\\', '\\\\')
-    output_file = output_file.replace('/', '//')
+    output_file = output_file.replace("\\", "\\\\")
+    output_file = output_file.replace("/", "//")
     return output_file
 
 
