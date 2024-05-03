@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Module for converting subtitles from SubRip to ASS"""
 
 # -*- coding: utf-8 -*-
@@ -45,13 +46,13 @@ def get_header(ffmpeg_detect, sub_offset, sub_size, is_hdr):
         sub_border_outline = 1.6
         scaled_sub_size = sub_size
 
-        if res_y >= 1080:
+        if res_x >= 1920:
             play_res_x = f"PlayResX: {res_x}"
             play_res_y = f"PlayResY: {res_y}"
             sub_margin = sub_margin + bar_size
             sub_border_outline = sub_border_outline * 2
             scaled_sub_size = sub_size * SCALING_FACTOR
-            if res_y >= 2160:
+            if res_x >= 3840:
                 sub_border_outline = sub_border_outline * 2
                 scaled_sub_size = sub_size * 2 * SCALING_FACTOR
         sub_border_shadow = sub_border_outline
