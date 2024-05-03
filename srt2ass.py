@@ -143,14 +143,14 @@ def srt2ass(input_file, sub_offset, sub_size, ffmpeg_detect):
     sub_lines = re.sub(r"\d(\d:\d{2}:\d{2}),(\d{2})\d", "\\1.\\2", sub_lines)
     sub_lines = re.sub(r"\s+-->\s+", ",", sub_lines)
     # replace style
-    sub_lines = re.sub("<([ubi])>", r"{\\\\\g<1>1}", sub_lines)
-    sub_lines = re.sub("</([ubi])>", r"{\\\\\g<1>0}", sub_lines)
+    sub_lines = re.sub(r"<([ubi])>", r"{\\\g<1>1}", sub_lines)
+    sub_lines = re.sub(r"</([ubi])>", r"{\\\g<1>0}", sub_lines)
     sub_lines = re.sub(
         r'<font\s+color="?#(\w{2})(\w{2})(\w{2})"?>',
-        r"{\\\\c&H\\3\\2\\1&}",
+        "{\\\\c&H\\3\\2\\1&}",
         sub_lines,
     )
-    sub_lines = re.sub("</font>", "", sub_lines)
+    sub_lines = re.sub(r"</font>", "", sub_lines)
 
     # TODO: Use FFmpeg to get HDR metadata
     is_hdr = bool(
@@ -172,16 +172,17 @@ def srt2ass(input_file, sub_offset, sub_size, ffmpeg_detect):
     return output_file
 
 
+# TODO: Scan filesystem for media files and add proper handling if none is found
 def parse_file_name(file):
     """Replaces .srt or en.srt or eng.srt suffix with .mkv
 
     Returns: absolute path to media file as str"""
     path = os.path.dirname(os.path.abspath(file))
-    suffix_re = re.search(r"(\.[a-z]{2,3}\.srt|\.srt)$", file)
-    file_base_name = (
-        os.path.basename(file).removesuffix(suffix_re.group()) + ".mkv"
-    )
-    return f"{path}/{file_base_name}"
+    pattern = re.compile(r"^(.*?)(\.[a-z]{2,3}\.srt|\.srt)$")
+    # suffix_re = re.search(r"(\.[a-z]{2,3}\.srt|\.srt)$", file)
+
+    file_name_re = pattern.search(os.path.basename(file))
+    return f"{path}/{file_name_re.group(1)}.mkv"
 
 
 def main(args):
@@ -192,8 +193,6 @@ def main(args):
         if not Path(file).is_file():
             print(f"Could not read file: {file}")
             exit(1)
-        # TODO: Scan filesystem for media files and add proper
-        #       handling if none is found
         file_name = parse_file_name(file)
         if file_name != media_file:
             media_file = file_name
@@ -203,7 +202,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Convert subtitles from SubRip (SRT) to Advanced Sub Station Alpha (ASS)"
+        description="Converts subs from SubRip to Advanced Sub Station Alpha"
     )
     parser.add_argument(
         "-i",
@@ -217,13 +216,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "-o",
         "--offset",
-        help="Set subtitle offset from the bottom, defaults to 24 px",
+        help="Set subtitle offset from the bottom, defaults to [24] px",
         required=False,
     )
     parser.add_argument(
         "-s",
         "--size",
-        help="Set subtitle size, defaults to 16",
+        help="Set subtitle size, defaults to [16]",
         required=False,
     )
     arguments = parser.parse_args()
