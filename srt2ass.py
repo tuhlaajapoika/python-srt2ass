@@ -1,3 +1,5 @@
+"""Module for converting subtitles from SubRip to ASS"""
+
 # -*- coding: utf-8 -*-
 #
 # python-srt2ass: https://github.com/ewwink/python-srt2ass
@@ -7,11 +9,16 @@
 import argparse
 import os
 import re
+import sys
 import codecs
+import ffmpeg_crop_detect as ff
 from pathlib import Path
 
 
-def fileopen(input_file):
+SCALING_FACTOR = 3.75
+
+
+def file_open(input_file):
     encodings = ["utf-32", "utf-16", "utf-8", "cp1252", "gb2312", "gbk", "big5"]
     tmp = ""
     for enc in encodings:
@@ -19,18 +26,72 @@ def fileopen(input_file):
             with codecs.open(input_file, mode="r", encoding=enc) as fd:
                 tmp = fd.read()
                 break
-        except:
-            # print(f"{enc} failed")
+        except UnicodeError:
+            # print(f"{enc} failed", file=sys.stderr)
             continue
     return [tmp, enc]
 
 
-def srt2ass(input_file, sub_position, sub_size):
-    if sub_position is None:
-        sub_position = 24  # Default subtitle position
+def get_header(ffmpeg_detect, sub_offset, sub_size, is_hdr):
+    ffmpeg_result = ffmpeg_detect.crop_info()
+    if ffmpeg_result is None:
+        bar_size = int(ffmpeg_detect.get_bar_size())
+        res_x = int(ffmpeg_detect.get_res_x())
+        res_y = int(ffmpeg_detect.get_res_y())
+        play_res_x = ""
+        play_res_y = ""
 
+        sub_margin = sub_offset
+        sub_border_outline = 1.6
+        scaled_sub_size = sub_size
+
+        if res_y >= 1080:
+            play_res_x = f"PlayResX: {res_x}"
+            play_res_y = f"PlayResY: {res_y}"
+            sub_margin = sub_margin + bar_size
+            sub_border_outline = sub_border_outline * 2
+            scaled_sub_size = sub_size * SCALING_FACTOR
+            if res_y >= 2160:
+                sub_border_outline = sub_border_outline * 2
+                scaled_sub_size = sub_size * 2 * SCALING_FACTOR
+        sub_border_shadow = sub_border_outline
+
+        if is_hdr:
+            font_color = "&H00646464"
+        else:
+            font_color = "&H33DCF0FA"
+
+        return f"""[Script Info]
+; This is an Advanced Sub Station Alpha v4+ script.
+Title:
+ScriptType: v4.00+
+Collisions: Normal
+PlayDepth: 0
+ScaledBorderAndShadow: Yes
+{play_res_x}
+{play_res_y}
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,{scaled_sub_size},{font_color},&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,{sub_border_outline},{sub_border_shadow},2,10,10,{sub_margin},1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"""
+
+    else:
+        print("ERROR")
+        print(ffmpeg_result, file=sys.stderr)
+        exit(1)
+
+
+def srt2ass(input_file, sub_offset, sub_size, ffmpeg_detect):
+    # Default subtitle offset/position
+    if sub_offset is None:
+        sub_offset = 24
+
+    # Default subtitle size
     if sub_size is None:
-        sub_size = 16  # Default subtitle size
+        sub_size = 16
 
     if ".ass" in input_file:
         return input_file
@@ -39,7 +100,7 @@ def srt2ass(input_file, sub_position, sub_size):
         print(f"{input_file} does not exist")
         return
 
-    src = fileopen(input_file)
+    src = file_open(input_file)
     tmp = src[0]
     encoding = src[1]
     src = ""
@@ -59,14 +120,14 @@ def srt2ass(input_file, sub_position, sub_size):
 
     for ln in range(len(lines)):
         line = lines[ln]
-        if line.isdigit() and re.match("-?\d\d:\d\d:\d\d", lines[(ln + 1)]):
+        if line.isdigit() and re.match(r"-?\d\d:\d\d:\d\d", lines[(ln + 1)]):
             if tmp_lines:
                 sub_lines += tmp_lines + "\n"
             tmp_lines = ""
             line_count = 0
             continue
         else:
-            if re.match("-?\d\d:\d\d:\d\d", line):
+            if re.match(r"-?\d\d:\d\d:\d\d", line):
                 line = line.replace("-0", "0")
                 tmp_lines += "Dialogue: 0," + line + ",Default,,0,0,0,,"
             else:
@@ -82,50 +143,23 @@ def srt2ass(input_file, sub_position, sub_size):
     sub_lines = re.sub(r"\d(\d:\d{2}:\d{2}),(\d{2})\d", "\\1.\\2", sub_lines)
     sub_lines = re.sub(r"\s+-->\s+", ",", sub_lines)
     # replace style
-    sub_lines = re.sub(r"<([ubi])>", "{\\\\\g<1>1}", sub_lines)
-    sub_lines = re.sub(r"</([ubi])>", "{\\\\\g<1>0}", sub_lines)
+    sub_lines = re.sub("<([ubi])>", r"{\\\\\g<1>1}", sub_lines)
+    sub_lines = re.sub("</([ubi])>", r"{\\\\\g<1>0}", sub_lines)
     sub_lines = re.sub(
         r'<font\s+color="?#(\w{2})(\w{2})(\w{2})"?>',
-        "{\\\\c&H\\3\\2\\1&}",
+        r"{\\\\c&H\\3\\2\\1&}",
         sub_lines,
     )
-    sub_lines = re.sub(r"</font>", "", sub_lines)
+    sub_lines = re.sub("</font>", "", sub_lines)
 
+    # TODO: Use FFmpeg to get HDR metadata
     is_hdr = bool(
         re.search(
             r"(HDR|DV|DolbyVision|Dolby\.Vision|Dolby Vision)", input_file
         )
     )
-    if is_hdr:
-        head_str = f"""[Script Info]
-; This is an Advanced Sub Station Alpha v4+ script.
-Title:
-ScriptType: v4.00+
-Collisions: Normal
-PlayDepth: 0
-ScaledBorderAndShadow: Yes
 
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,{sub_size},&H00646464,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.4,1.4,2,10,10,{sub_position},1
-
-[Events]
-Format: Layer, Start, End, Style, Actor, MarginL, MarginR, MarginV, Effect, Text"""
-    else:
-        head_str = f"""[Script Info]
-; This is an Advanced Sub Station Alpha v4+ script.
-Title:
-ScriptType: v4.00+
-Collisions: Normal
-PlayDepth: 0
-ScaledBorderAndShadow: Yes
-
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,{sub_size},&H33DCF0FA,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1.4,1.4,2,10,10,{sub_position},1
-
-[Events]
-Format: Layer, Start, End, Style, Actor, MarginL, MarginR, MarginV, Effect, Text"""
+    head_str = get_header(ffmpeg_detect, sub_offset, sub_size, is_hdr)
 
     output_str = utf8bom + head_str + "\n" + sub_lines
     output_str = output_str.encode(encoding)
@@ -138,12 +172,33 @@ Format: Layer, Start, End, Style, Actor, MarginL, MarginR, MarginV, Effect, Text
     return output_file
 
 
+def parse_file_name(file):
+    """Replaces .srt or en.srt or eng.srt suffix with .mkv
+
+    Returns: absolute path to media file as str"""
+    path = os.path.dirname(os.path.abspath(file))
+    suffix_re = re.search(r"(\.[a-z]{2,3}\.srt|\.srt)$", file)
+    file_base_name = (
+        os.path.basename(file).removesuffix(suffix_re.group()) + ".mkv"
+    )
+    return f"{path}/{file_base_name}"
+
+
 def main(args):
-    for file in args.input_list:
+    ffmpeg_detect = ff.GetMediaInformation()
+    media_file = ""
+    sorted_list = sorted(args.input_list)
+    for file in sorted_list:
         if not Path(file).is_file():
             print(f"Could not read file: {file}")
             exit(1)
-        srt2ass(file, args.position, args.size)
+        # TODO: Scan filesystem for media files and add proper
+        #       handling if none is found
+        file_name = parse_file_name(file)
+        if file_name != media_file:
+            media_file = file_name
+            ffmpeg_detect.set_file_path(media_file)
+        srt2ass(file, args.offset, args.size, ffmpeg_detect)
 
 
 if __name__ == "__main__":
@@ -160,15 +215,15 @@ if __name__ == "__main__":
         required=True,
     )
     parser.add_argument(
-        "-pos",
-        "--position",
-        help="Set subtitle position from the bottom",
+        "-o",
+        "--offset",
+        help="Set subtitle offset from the bottom, defaults to 24 px",
         required=False,
     )
     parser.add_argument(
-        "-sz",
+        "-s",
         "--size",
-        help="Set subtitle size",
+        help="Set subtitle size, defaults to 16",
         required=False,
     )
     arguments = parser.parse_args()
