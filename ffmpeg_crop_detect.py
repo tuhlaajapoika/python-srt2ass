@@ -58,13 +58,11 @@ class GetMediaInformation:
             "-hide_banner",
             "-nostats",
             "-ss",
-            "300",
-            "-t",
-            "4",
+            "600",
             "-i",
             f"{self.get_file_path()}",
             "-vframes",
-            "6",
+            "60",
             "-vf",
             "cropdetect",
             "-f",
@@ -85,14 +83,18 @@ class GetMediaInformation:
         proc.stdout.flush()
 
         pattern = re.compile(r"^.*crop=(\d+):(\d+):.*:(\d+)$", re.MULTILINE)
-        result_crop_info = pattern.search(cmd_output)
+        list_crop_info = pattern.findall(cmd_output)
+        result_crop_info = list_crop_info[-1]
 
         try:
-            self.__bar_size = result_crop_info.group(3)
-            self.__res_x = result_crop_info.group(1)
+            if 1700 < int(result_crop_info[0]) < 2100:
+                self.__res_x = 1920
+            if 3500 < int(result_crop_info[0]) < 4400:
+                self.__res_x = 3840
             self.__res_y = (
-                f"{int(result_crop_info.group(2)) + 2 * int(self.__bar_size)}"
+                f"{int(result_crop_info[1]) + 2 * int(result_crop_info[2])}"
             )
+            self.__bar_size = result_crop_info[2]
             return None
         except AttributeError as ex:
             return f"Error parsing cropping information: {ex}"

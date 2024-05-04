@@ -45,17 +45,17 @@ def get_header(ffmpeg_detect, sub_offset, sub_size, is_hdr):
         sub_margin = sub_offset
         sub_border_outline = 1.6
         scaled_sub_size = sub_size
+        sub_border_shadow = sub_border_outline
 
-        if res_x >= 1920:
+        if res_x > 1800:
             play_res_x = f"PlayResX: {res_x}"
             play_res_y = f"PlayResY: {res_y}"
             sub_margin = sub_margin + bar_size
             sub_border_outline = sub_border_outline * 2
             scaled_sub_size = sub_size * SCALING_FACTOR
-            if res_x >= 3840:
+            if res_x > 3000:
                 sub_border_outline = sub_border_outline * 2
                 scaled_sub_size = sub_size * 2 * SCALING_FACTOR
-        sub_border_shadow = sub_border_outline
 
         if is_hdr:
             font_color = "&H00646464"
