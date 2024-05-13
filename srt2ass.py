@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import codecs
+import time
 import ffmpeg_crop_detect as ff
 from pathlib import Path
 
@@ -33,7 +34,7 @@ def file_open(input_file):
     return [tmp, enc]
 
 
-def get_header(ffmpeg_detect, sub_offset, sub_size, is_hdr):
+def get_header(ffmpeg_detect, sub_position, sub_size, is_hdr):
     ffmpeg_result = ffmpeg_detect.crop_info()
     if ffmpeg_result is None:
         bar_size = int(ffmpeg_detect.get_bar_size())
@@ -42,10 +43,9 @@ def get_header(ffmpeg_detect, sub_offset, sub_size, is_hdr):
         play_res_x = ""
         play_res_y = ""
 
-        sub_margin = sub_offset
+        sub_margin = int(sub_position)
         sub_border_outline = 1.6
         scaled_sub_size = sub_size
-        sub_border_shadow = sub_border_outline
 
         if res_x > 1800:
             play_res_x = f"PlayResX: {res_x}"
@@ -56,6 +56,7 @@ def get_header(ffmpeg_detect, sub_offset, sub_size, is_hdr):
             if res_x > 3000:
                 sub_border_outline = sub_border_outline * 2
                 scaled_sub_size = sub_size * 2 * SCALING_FACTOR
+        sub_border_shadow = sub_border_outline
 
         if is_hdr:
             font_color = "&H00646464"
@@ -85,10 +86,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
         exit(1)
 
 
-def srt2ass(input_file, sub_offset, sub_size, ffmpeg_detect):
-    # Default subtitle offset/position
-    if sub_offset is None:
-        sub_offset = 24
+def srt2ass(input_file, sub_position, sub_size, ffmpeg_detect):
+    # Default subtitle position
+    if sub_position is None:
+        sub_position = 24
 
     # Default subtitle size
     if sub_size is None:
@@ -98,7 +99,7 @@ def srt2ass(input_file, sub_offset, sub_size, ffmpeg_detect):
         return input_file
 
     if not os.path.isfile(input_file):
-        print(f"{input_file} does not exist")
+        print(f"    {input_file} does not exist")
         return
 
     src = file_open(input_file)
@@ -160,7 +161,7 @@ def srt2ass(input_file, sub_offset, sub_size, ffmpeg_detect):
         )
     )
 
-    head_str = get_header(ffmpeg_detect, sub_offset, sub_size, is_hdr)
+    head_str = get_header(ffmpeg_detect, sub_position, sub_size, is_hdr)
 
     output_str = utf8bom + head_str + "\n" + sub_lines
     output_str = output_str.encode(encoding)
@@ -186,11 +187,54 @@ def parse_file_name(file):
     return f"{path}/{file_name_re.group(1)}.mkv"
 
 
-def main(args):
+# Print iterations progress
+def progress_bar(
+    iteration,
+    total,
+    prefix="",
+    suffix="",
+    decimals=1,
+    length=100,
+    fill="█",
+    printend="\r",
+):
+    """Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printend    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+
+    percent = ("{0:." + str(decimals) + "f}").format(
+        100 * (iteration / float(total))
+    )
+    filledlength = int(length * iteration // total)
+    bar = fill * filledlength + "-" * (length - filledlength)
+    print(f"\r{prefix} |{bar}| {percent}% {suffix}", end=printend)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
+
+
+# TODO: srt2ass as a module and separate others
+def main():
+    # pattern = re.compile(r"^(.*?)(\.[a-z]{2,3}\.srt|\.srt)$")
     ffmpeg_detect = ff.GetMediaInformation()
     media_file = ""
-    sorted_list = sorted(args.input_list)
-    for file in sorted_list:
+    sorted_list = sorted(arguments.input_list)
+    l = len(sorted_list)
+    s = arguments.silent
+
+    if not s:
+        progress_bar(0, l, "Progress:", "Complete", 50)
+
+    # for file in progress_bar(sorted_list, l, "Progress:", "Complete", 1, 50, s):
+    for i, file in enumerate(sorted_list):
         if not Path(file).is_file():
             print(f"Could not read file: {file}")
             exit(1)
@@ -198,7 +242,10 @@ def main(args):
         if file_name != media_file:
             media_file = file_name
             ffmpeg_detect.set_file_path(media_file)
-        srt2ass(file, args.offset, args.size, ffmpeg_detect)
+        srt2ass(file, arguments.position, arguments.size, ffmpeg_detect)
+        if not s:
+            time.sleep(0.1)
+            progress_bar(i + 1, l, "Progress:", "Complete", 50)
 
 
 if __name__ == "__main__":
@@ -211,20 +258,35 @@ if __name__ == "__main__":
         nargs="+",
         type=str,
         dest="input_list",
-        help="File name",
+        help="input file(s)",
         required=True,
     )
     parser.add_argument(
-        "-o",
-        "--offset",
-        help="Set subtitle offset from the bottom, defaults to [24] px",
+        "-p",
+        "--position",
+        help="set subtitle position from the bottom, defaults to [24] px",
+        required=False,
+    )
+    parser.add_argument(
+        "-sz",
+        "--size",
+        help="set subtitle size, defaults to [16]",
         required=False,
     )
     parser.add_argument(
         "-s",
-        "--size",
-        help="Set subtitle size, defaults to [16]",
+        "--silent",
+        action="store_true",
+        help="don't print output",
+        required=False,
+    )
+    parser.add_argument(  # TODO: verbose
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="verbose output",
         required=False,
     )
     arguments = parser.parse_args()
-    main(arguments)
+    # arguments._get_kwargs()
+    main()
