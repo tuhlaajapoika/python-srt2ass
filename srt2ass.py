@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-"""Module for converting subtitles from SubRip to ASS"""
+"""Module for converting subtitle format .srt to .ass"""
 
 # -*- coding: utf-8 -*-
 #
 # python-srt2ass: https://github.com/ewwink/python-srt2ass
 # by: ewwink
 #
+# forked: tuhlaajapoika
 
 import argparse
 import os
@@ -18,6 +19,8 @@ from pathlib import Path
 
 
 SCALING_FACTOR = 3.75
+IS_SILENT = False
+USE_BOX = False
 
 
 def file_open(input_file):
@@ -44,24 +47,33 @@ def get_header(ffmpeg_detect, sub_position, sub_size, is_hdr):
         play_res_y = ""
 
         sub_margin = int(sub_position)
-        sub_border_outline = 1.6
+        outline_size = 1.6
         scaled_sub_size = sub_size
 
         if res_x > 1800:
             play_res_x = f"PlayResX: {res_x}"
             play_res_y = f"PlayResY: {res_y}"
             sub_margin = sub_margin + bar_size
-            sub_border_outline = sub_border_outline * 2
+            outline_size = outline_size * 2
             scaled_sub_size = sub_size * SCALING_FACTOR
             if res_x > 3000:
-                sub_border_outline = sub_border_outline * 2
+                outline_size = outline_size * 2
                 scaled_sub_size = sub_size * 2 * SCALING_FACTOR
-        sub_border_shadow = sub_border_outline
+        shadow_size = outline_size
 
         if is_hdr:
-            font_color = "&H00646464"
+            primary_colour = "&H00646464"
         else:
-            font_color = "&H33DCF0FA"
+            primary_colour = "&H33DCF0FA"
+
+        if USE_BOX:
+            border_style = 3
+        else:
+            border_style = 1
+
+        secondary_colour = "&H0000FFFF"
+        border_colour = "&H00000000"
+        shadow_colour = "&H02000000"
 
         return f"""[Script Info]
 ; This is an Advanced Sub Station Alpha v4+ script.
@@ -75,7 +87,7 @@ ScaledBorderAndShadow: Yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,{scaled_sub_size},{font_color},&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,{sub_border_outline},{sub_border_shadow},2,10,10,{sub_margin},1
+Style: Default,Arial,{scaled_sub_size},{primary_colour},{secondary_colour},{border_colour},{shadow_colour},0,0,0,0,100,100,0,0,1,{outline_size},{shadow_size},{border_style},10,10,{sub_margin},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"""
@@ -184,7 +196,7 @@ def parse_file_name(file):
     # suffix_re = re.search(r"(\.[a-z]{2,3}\.srt|\.srt)$", file)
 
     file_name_re = pattern.search(os.path.basename(file))
-    return f"{path}/{file_name_re.group(1)}.mkv"
+    return f"{path}/{file_name_re.group(1)}.mkv"  # type: ignore
 
 
 # Print iterations progress
@@ -204,12 +216,11 @@ def progress_bar(
         total       - Required  : total iterations (Int)
         prefix      - Optional  : prefix string (Str)
         suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        decimals    - Optional  : number of decimals in percent complete (Int)
         length      - Optional  : character length of bar (Int)
         fill        - Optional  : bar fill character (Str)
-        printend    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
     """
-
     percent = ("{0:." + str(decimals) + "f}").format(
         100 * (iteration / float(total))
     )
@@ -221,19 +232,20 @@ def progress_bar(
         print()
 
 
-# TODO: srt2ass as a module and separate others
+# TODO: srt2ass as a module and separate rest
 def main():
     # pattern = re.compile(r"^(.*?)(\.[a-z]{2,3}\.srt|\.srt)$")
     ffmpeg_detect = ff.GetMediaInformation()
     media_file = ""
     sorted_list = sorted(arguments.input_list)
     l = len(sorted_list)
-    s = arguments.silent
 
-    if not s:
-        progress_bar(0, l, "Progress:", "Complete", 50)
+    if not IS_SILENT:
+        progress_bar(0, l, prefix="Progress:", suffix="Complete", length = 50)
 
     # for file in progress_bar(sorted_list, l, "Progress:", "Complete", 1, 50, s):
+    #   do stuff
+    # time.sleep(0.1)
     for i, file in enumerate(sorted_list):
         if not Path(file).is_file():
             print(f"Could not read file: {file}")
@@ -243,9 +255,9 @@ def main():
             media_file = file_name
             ffmpeg_detect.set_file_path(media_file)
         srt2ass(file, arguments.position, arguments.size, ffmpeg_detect)
-        if not s:
+        if not IS_SILENT:
             time.sleep(0.1)
-            progress_bar(i + 1, l, "Progress:", "Complete", 50)
+            progress_bar(i + 1, l, prefix="Progress:", suffix="Complete", length = 50)
 
 
 if __name__ == "__main__":
@@ -260,6 +272,13 @@ if __name__ == "__main__":
         dest="input_list",
         help="input file(s)",
         required=True,
+    )
+    parser.add_argument(
+        "-b",
+        "--box",
+        action="store_true",
+        help="use opaque box for subs",
+        required=False,
     )
     parser.add_argument(
         "-p",
@@ -288,5 +307,7 @@ if __name__ == "__main__":
         required=False,
     )
     arguments = parser.parse_args()
+    IS_SILENT = arguments.silent
+    USE_BOX = arguments.box
     # arguments._get_kwargs()
     main()
