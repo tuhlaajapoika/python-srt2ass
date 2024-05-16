@@ -79,8 +79,8 @@ class GetMediaInformation:
         )
         # check=False
 
-        cmd_output = proc.stdout.read()
-        proc.stdout.flush()
+        cmd_output = proc.stdout.read() # type: ignore
+        proc.stdout.flush() # type: ignore
 
         pattern = re.compile(r"^.*crop=(\d+):(\d+):.*:(\d+)$", re.MULTILINE)
         list_crop_info = pattern.findall(cmd_output)

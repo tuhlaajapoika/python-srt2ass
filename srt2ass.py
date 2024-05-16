@@ -46,14 +46,14 @@ def get_header(ffmpeg_detect, sub_position, sub_size, is_hdr):
         play_res_x = ""
         play_res_y = ""
 
-        sub_margin = int(sub_position)
+        margin_vertical = int(sub_position)
         outline_size = 1.6
         scaled_sub_size = sub_size
 
         if res_x > 1800:
             play_res_x = f"PlayResX: {res_x}"
             play_res_y = f"PlayResY: {res_y}"
-            sub_margin = sub_margin + bar_size
+            margin_vertical = margin_vertical + bar_size
             outline_size = outline_size * 2
             scaled_sub_size = sub_size * SCALING_FACTOR
             if res_x > 3000:
@@ -72,8 +72,8 @@ def get_header(ffmpeg_detect, sub_position, sub_size, is_hdr):
             border_style = 1
 
         secondary_colour = "&H0000FFFF"
-        border_colour = "&H00000000"
-        shadow_colour = "&H02000000"
+        outline_colour = "&H00000000"
+        back_colour = "&H02000000"
 
         return f"""[Script Info]
 ; This is an Advanced Sub Station Alpha v4+ script.
@@ -87,7 +87,7 @@ ScaledBorderAndShadow: Yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,{scaled_sub_size},{primary_colour},{secondary_colour},{border_colour},{shadow_colour},0,0,0,0,100,100,0,0,1,{outline_size},{shadow_size},{border_style},10,10,{sub_margin},1
+Style: Default,Arial,{scaled_sub_size},{primary_colour},{secondary_colour},{outline_colour},{back_colour},0,0,0,0,100,100,0,0,{border_style},{outline_size},{shadow_size},2,10,10,{margin_vertical},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"""
@@ -241,7 +241,7 @@ def main():
     l = len(sorted_list)
 
     if not IS_SILENT:
-        progress_bar(0, l, prefix="Progress:", suffix="Complete", length = 50)
+        progress_bar(0, l, prefix="Progress:", suffix="Complete", length=50)
 
     # for file in progress_bar(sorted_list, l, "Progress:", "Complete", 1, 50, s):
     #   do stuff
@@ -257,7 +257,9 @@ def main():
         srt2ass(file, arguments.position, arguments.size, ffmpeg_detect)
         if not IS_SILENT:
             time.sleep(0.1)
-            progress_bar(i + 1, l, prefix="Progress:", suffix="Complete", length = 50)
+            progress_bar(
+                i + 1, l, prefix="Progress:", suffix="Complete", length=50
+            )
 
 
 if __name__ == "__main__":
