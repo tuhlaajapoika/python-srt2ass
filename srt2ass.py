@@ -50,7 +50,7 @@ def get_header(ffmpeg_detect, sub_position, sub_size, is_hdr):
         outline_size = 1.6
         scaled_sub_size = sub_size
 
-        if res_x > 1800:
+        if res_x > 1900:
             play_res_x = f"PlayResX: {res_x}"
             play_res_y = f"PlayResY: {res_y}"
             margin_vertical = margin_vertical + bar_size
@@ -188,13 +188,14 @@ def srt2ass(input_file, sub_position, sub_size, ffmpeg_detect):
 
 # TODO: Scan filesystem for media files and add proper handling if none is found
 def parse_file_name(file):
-    """Replaces .srt or en.srt or eng.srt suffix with .mkv
+    """Replaces subtitle suffix with .mkv
 
     Returns: absolute path to media file as str"""
     path = os.path.dirname(os.path.abspath(file))
-    pattern = re.compile(r"^(.*?)(\.[a-z]{2,3}\.srt|\.srt)$")
-    # suffix_re = re.search(r"(\.[a-z]{2,3}\.srt|\.srt)$", file)
-
+    # regex rule for medianame.default.eng.sdh.forced.srt
+    pattern = re.compile(
+        r"^(.*?)(((\.default)?(?:\.[a-z]{2,3}){0,2}(\.forced)?)\.srt)$"
+    )
     file_name_re = pattern.search(os.path.basename(file))
     return f"{path}/{file_name_re.group(1)}.mkv"  # type: ignore
 
@@ -233,7 +234,7 @@ def progress_bar(
 
 
 # TODO: srt2ass as a module and separate rest
-def main():
+def main(arguments):
     # pattern = re.compile(r"^(.*?)(\.[a-z]{2,3}\.srt|\.srt)$")
     ffmpeg_detect = ff.GetMediaInformation()
     media_file = ""
@@ -308,8 +309,8 @@ if __name__ == "__main__":
         help="verbose output",
         required=False,
     )
-    arguments = parser.parse_args()
-    IS_SILENT = arguments.silent
-    USE_BOX = arguments.box
-    # arguments._get_kwargs()
-    main()
+    args = parser.parse_args()
+    IS_SILENT = args.silent
+    USE_BOX = args.box
+    # args._get_kwargs()
+    main(args)

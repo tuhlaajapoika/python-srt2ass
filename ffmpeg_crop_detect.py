@@ -45,20 +45,16 @@ class GetMediaInformation:
         return self.__res_y
 
     def crop_info(self):
-        """Get video resolution and cropping information from ffmpeg
-        cropdetect output for eg. crop=3840:1600:0:280
+        """Get vertical video resolution and cropping information using 'ffmpeg
+        cropdetect' and horizontal resolution using 'ffprobe'
 
         Returns None if successful, str error message otherwise"""
-        #  2>&1 | \
-        #   tail -3 | \
-        #   sed -n -e 's/^.* crop=\([0-9:]*\)$/\1/ p'
-        # ->
-        cmd = [
+        cmd_ffmpeg = [
             "ffmpeg",
             "-hide_banner",
             "-nostats",
             "-ss",
-            "600",
+            "1200",
             "-i",
             f"{self.get_file_path()}",
             "-vframes",
@@ -71,7 +67,7 @@ class GetMediaInformation:
         ]
 
         proc = subprocess.Popen(
-            cmd,
+            cmd_ffmpeg,
             bufsize=0,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -82,19 +78,43 @@ class GetMediaInformation:
         cmd_output = proc.stdout.read() # type: ignore
         proc.stdout.flush() # type: ignore
 
-        pattern = re.compile(r"^.*crop=(\d+):(\d+):.*:(\d+)$", re.MULTILINE)
+        pattern = re.compile(r"^.*crop=\d+:(\d+):.*:(\d+)$", re.MULTILINE)
         list_crop_info = pattern.findall(cmd_output)
         result_crop_info = list_crop_info[-1]
 
+        # ffprobe
+        cmd_ffprobe = [
+            "ffprobe",
+            "-hide_banner",
+            "-v",
+            "error",
+            "-select_streams",
+            "0",
+            "-show_entries",
+            "stream=width",
+            "-of",
+            "csv=p=0",
+            f"{self.get_file_path()}"
+        ]
+
+        proc = subprocess.Popen(
+            cmd_ffprobe,
+            bufsize=0,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+        )
+
+        cmd_ffprobe_output = proc.stdout.read() # type: ignore
+        proc.stdout.flush() # type: ignore
+        res_x = cmd_ffprobe_output.strip()
+
         try:
-            if 1700 < int(result_crop_info[0]) < 2100:
-                self.__res_x = 1920
-            if 3500 < int(result_crop_info[0]) < 4400:
-                self.__res_x = 3840
+            self.__res_x = int(res_x)
             self.__res_y = (
-                f"{int(result_crop_info[1]) + 2 * int(result_crop_info[2])}"
+                f"{int(result_crop_info[0]) + 2 * int(result_crop_info[1])}"
             )
-            self.__bar_size = result_crop_info[2]
+            self.__bar_size = result_crop_info[1]
             return None
         except AttributeError as ex:
             return f"Error parsing cropping information: {ex}"
