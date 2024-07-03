@@ -37,8 +37,18 @@ def file_open(input_file):
     return [tmp, enc]
 
 
-def get_header(ffmpeg_detect, sub_position, sub_size, is_hdr):
-    ffmpeg_result = ffmpeg_detect.crop_info()
+def get_header(
+    ffmpeg_detect, video_heigth, video_width, sub_position, sub_size, is_hdr
+):
+    ffmpeg_result = None
+    if not video_heigth or not video_width:
+        ffmpeg_result = ffmpeg_detect.crop_info()
+    else:
+        # TODO: if not set
+        ffmpeg_detect.set_res_y(video_heigth)
+        ffmpeg_detect.set_res_x(video_width)
+        ffmpeg_detect.set_bar_size("0")
+
     if ffmpeg_result is None:
         bar_size = int(ffmpeg_detect.get_bar_size())
         res_x = int(ffmpeg_detect.get_res_x())
@@ -98,7 +108,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
         exit(1)
 
 
-def srt2ass(input_file, sub_position, sub_size, ffmpeg_detect):
+def srt2ass(
+    ffmpeg_detect,
+    input_file,
+    video_heigth,
+    video_width,
+    sub_position,
+    sub_size,
+):
     # Default subtitle position
     if sub_position is None:
         sub_position = 24
@@ -173,7 +190,9 @@ def srt2ass(input_file, sub_position, sub_size, ffmpeg_detect):
         )
     )
 
-    head_str = get_header(ffmpeg_detect, sub_position, sub_size, is_hdr)
+    head_str = get_header(
+        ffmpeg_detect, video_heigth, video_width, sub_position, sub_size, is_hdr
+    )
 
     output_str = utf8bom + head_str + "\n" + sub_lines
     output_str = output_str.encode(encoding)
@@ -187,17 +206,18 @@ def srt2ass(input_file, sub_position, sub_size, ffmpeg_detect):
 
 
 # TODO: Scan filesystem for media files and add proper handling if none is found
-def parse_file_name(file):
-    """Replaces subtitle suffix with .mkv
+def parse_file_name(file, video_format):
+    """Replaces subtitle suffix with .mkv or user provided
 
     Returns: absolute path to media file as str"""
+
     path = os.path.dirname(os.path.abspath(file))
-    # regex rule for medianame.default.eng.sdh.forced.srt
+    # regex rule for filename.default.eng.sdh.forced.srt
     pattern = re.compile(
         r"^(.*?)(((\.default)?(?:\.[a-z]{2,3}){0,2}(\.forced)?)\.srt)$"
     )
     file_name_re = pattern.search(os.path.basename(file))
-    return f"{path}/{file_name_re.group(1)}.mkv"  # type: ignore
+    return f"{path}/{file_name_re.group(1)}.{video_format}"  # type: ignore
 
 
 # Print iterations progress
@@ -251,11 +271,18 @@ def main(arguments):
         if not Path(file).is_file():
             print(f"Could not read file: {file}")
             exit(1)
-        file_name = parse_file_name(file)
+        file_name = parse_file_name(file, arguments.video_format)
         if file_name != media_file:
             media_file = file_name
             ffmpeg_detect.set_file_path(media_file)
-        srt2ass(file, arguments.position, arguments.size, ffmpeg_detect)
+        srt2ass(
+            ffmpeg_detect,
+            file,
+            arguments.video_heigth,
+            arguments.video_width,
+            arguments.position,
+            arguments.size,
+        )
         if not IS_SILENT:
             time.sleep(0.1)
             progress_bar(
@@ -287,6 +314,30 @@ if __name__ == "__main__":
         "-p",
         "--position",
         help="set subtitle position from the bottom, defaults to [24] px",
+        required=False,
+    )
+    parser.add_argument(
+        "--format",
+        help="video file format, defaults to mkv",
+        default="mkv",
+        type=str,
+        dest="video_format",
+        required=False,
+    )
+    parser.add_argument(
+        "-x",
+        "--width",
+        help="override video width, won't use ffprobe",
+        type=int,
+        dest="video_width",
+        required=False,
+    )
+    parser.add_argument(
+        "-y",
+        "--heigth",
+        help="override video heigth, won't use ffprobe",
+        type=int,
+        dest="video_heigth",
         required=False,
     )
     parser.add_argument(

@@ -36,13 +36,25 @@ class GetMediaInformation:
         """Returns bottom (black) bar size"""
         return self.__bar_size
 
+    def set_bar_size(self, bar_size):
+        """Sets bottom (black) bar size"""
+        self.__bar_size = bar_size
+
     def get_res_x(self):
         """Returns horizontal resolution"""
         return self.__res_x
 
+    def set_res_x(self, res_x):
+        """Sets horizontal resolution"""
+        self.__res_x = res_x
+
     def get_res_y(self):
         """Returns vertical resolution"""
         return self.__res_y
+
+    def set_res_y(self, res_y):
+        """Sets vertical resolution"""
+        self.__res_y = res_y
 
     def crop_info(self):
         """Get vertical video resolution and cropping information using 'ffmpeg
@@ -75,8 +87,8 @@ class GetMediaInformation:
         )
         # check=False
 
-        cmd_output = proc.stdout.read() # type: ignore
-        proc.stdout.flush() # type: ignore
+        cmd_output = proc.stdout.read()  # type: ignore
+        proc.stdout.flush()  # type: ignore
 
         pattern = re.compile(r"^.*crop=\d+:(\d+):.*:(\d+)$", re.MULTILINE)
         list_crop_info = pattern.findall(cmd_output)
@@ -94,7 +106,7 @@ class GetMediaInformation:
             "stream=width",
             "-of",
             "csv=p=0",
-            f"{self.get_file_path()}"
+            f"{self.get_file_path()}",
         ]
 
         proc = subprocess.Popen(
@@ -105,8 +117,8 @@ class GetMediaInformation:
             universal_newlines=True,
         )
 
-        cmd_ffprobe_output = proc.stdout.read() # type: ignore
-        proc.stdout.flush() # type: ignore
+        cmd_ffprobe_output = proc.stdout.read()  # type: ignore
+        proc.stdout.flush()  # type: ignore
         res_x = cmd_ffprobe_output.strip()
 
         try:
