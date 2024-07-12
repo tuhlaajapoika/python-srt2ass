@@ -293,13 +293,11 @@ def main(arguments):
             # Unable to find corresponding media file for input subs file
             err_media_list.append(f"{PurePath(media_file_new).relative_to}")
             continue
-        # If processing multiple subs for the same media,
-        # skip ffmpeg_detect processing
+        # Test if we're processing multiple subs for the same media
         if media_file != media_file_new:
             media_file = media_file_new
-            ffmpeg_detect = None
-            ffmpeg_detect = ff.MediaParser()
-            ffmpeg_detect.set_file_path(media_file)
+            ffmpeg_detect = ff.MediaParser(media_file)
+            #ffmpeg_detect.set_file_path(media_file)
         srt2ass(
             ffmpeg_detect,
             file,

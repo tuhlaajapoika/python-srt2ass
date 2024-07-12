@@ -8,9 +8,13 @@ from pathlib import Path, PurePath
 class MediaParser:
     """Class for detecting video resolution and crop"""
 
-    def __init__(self):
-        self.__file = None
-        self.__path = None
+    def __init__(self, file=None):
+        if file:
+            self.__path = Path.absolute(Path(file)).parent
+            self.__file = PurePath(file).name
+        else:
+            self.__file = None
+            self.__path = None
         self.__bar_size = None
         self.__res_x = None
         self.__res_y = None
