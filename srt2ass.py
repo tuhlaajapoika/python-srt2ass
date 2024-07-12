@@ -9,13 +9,12 @@
 # forked: tuhlaajapoika
 
 import argparse
-import os
 import re
 import sys
 import codecs
 import time
 import ffmpeg_crop_detect as ff
-from pathlib import Path
+from pathlib import Path, PurePath
 
 
 SCALING_FACTOR = 3.75
@@ -127,7 +126,7 @@ def srt2ass(
     if ".ass" in input_file:
         return input_file
 
-    if not os.path.isfile(input_file):
+    if not Path(input_file).is_file:
         print(f"    {input_file} does not exist")
         return
 
@@ -227,13 +226,13 @@ def parse_file_name(input_file):
         file_path_no_suffix - Required : file path without file extension
     @return:
         str - absolute path to media file"""
-    directory = os.path.dirname(os.path.abspath(input_file))
+    directory = Path.absolute(Path(input_file)).parent
     # regex rule for filename.default.eng.sdh.forced.srt:
     # ^(.*?)((?:\.default|\.forced)*(?:\.[a-z]{2,3}){0,2}(?:\.default|\.forced)*)(\.srt)$
     pattern = re.compile(
         r"^(.*?)((?:\.default|\.forced)*(?:\.[a-z]{2,3}){0,2}(?:\.default|\.forced)*)(\.srt)$"
     )
-    file_name_re = pattern.search(os.path.basename(input_file))
+    file_name_re = pattern.search(PurePath(input_file).name) # basename
     file_path_no_suffix = f"{directory}/{file_name_re.group(1)}"  # type: ignore
     suffix = get_mediafile_format(file_path_no_suffix)
     return f"{file_path_no_suffix}.{suffix}"
@@ -276,7 +275,7 @@ def main(arguments):
     err_subs_list = []
     err_media_list = []
     media_file = ""
-    ffmpeg_detect = ff.GetMediaInformation()
+    ffmpeg_detect = ff.MediaParser()
     sorted_list = sorted(arguments.input_list)
     l = len(sorted_list)
     if not IS_SILENT:
@@ -287,17 +286,19 @@ def main(arguments):
     for i, file in enumerate(sorted_list):
         if not Path(file).is_file():
             # Unable to read subs file
-            err_subs_list.append(f"{os.path.relpath(file)}")
+            err_subs_list.append(f"{PurePath(file).relative_to}")
             continue
         media_file_new = parse_file_name(file)
         if not Path(media_file_new).is_file():
             # Unable to find corresponding media file for input subs file
-            err_media_list.append(f"{os.path.relpath(media_file_new)}")
+            err_media_list.append(f"{PurePath(media_file_new).relative_to}")
             continue
         # If processing multiple subs for the same media,
         # skip ffmpeg_detect processing
         if media_file != media_file_new:
             media_file = media_file_new
+            ffmpeg_detect = None
+            ffmpeg_detect = ff.MediaParser()
             ffmpeg_detect.set_file_path(media_file)
         srt2ass(
             ffmpeg_detect,
