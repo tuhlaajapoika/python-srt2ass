@@ -209,7 +209,8 @@ def get_mediafile_format(file_path_no_suffix):
     @params:
         file_path_no_suffix - Required : file path without file extension
     @return: str    file extension or empty if not found"""
-    video_formats = ["avi", "mkv", "mov", "mp4", "mpjpeg", "webm"]
+    # video_formats = ["avi", "mkv", "mov", "mp4", "mpjpeg", "webm"]
+    video_formats = ["mkv"]
     for suffix in video_formats:
         media_file = Path(f"{file_path_no_suffix}.{suffix}")
         if media_file.is_file():
@@ -232,7 +233,7 @@ def parse_file_name(input_file):
     pattern = re.compile(
         r"^(.*?)((?:\.default|\.forced)*(?:\.[a-z]{2,3}){0,2}(?:\.default|\.forced)*)(\.srt)$"
     )
-    file_name_re = pattern.search(PurePath(input_file).name) # basename
+    file_name_re = pattern.search(PurePath(input_file).name)  # basename
     file_path_no_suffix = f"{directory}/{file_name_re.group(1)}"  # type: ignore
     suffix = get_mediafile_format(file_path_no_suffix)
     return f"{file_path_no_suffix}.{suffix}"
@@ -286,18 +287,18 @@ def main(arguments):
     for i, file in enumerate(sorted_list):
         if not Path(file).is_file():
             # Unable to read subs file
-            err_subs_list.append(f"{PurePath(file).relative_to}")
+            err_subs_list.append(f"{file}")
             continue
         media_file_new = parse_file_name(file)
         if not Path(media_file_new).is_file():
             # Unable to find corresponding media file for input subs file
-            err_media_list.append(f"{PurePath(media_file_new).relative_to}")
+            err_media_list.append(f"{media_file_new}")
             continue
         # Test if we're processing multiple subs for the same media
         if media_file != media_file_new:
             media_file = media_file_new
             ffmpeg_detect = ff.MediaParser(media_file)
-            #ffmpeg_detect.set_file_path(media_file)
+            # ffmpeg_detect.set_file_path(media_file)
         srt2ass(
             ffmpeg_detect,
             file,
@@ -318,8 +319,9 @@ def main(arguments):
     if len(err_media_list) > 0:
         print("\n\nCouldn't find media files:\n")
         for i in range(len(err_media_list)):
-            file = err_media_list[i]
-            print(f"{file.removesuffix(".")}")
+            # file = err_media_list[i]
+            file = re.sub(r"\.$", "", err_media_list[i])
+            print(f"{file}")
 
 
 if __name__ == "__main__":
