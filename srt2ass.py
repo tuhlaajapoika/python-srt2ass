@@ -205,22 +205,40 @@ def srt2ass(
     return output_file
 
 
+def get_mediafile_format(file_path_no_suffix):
+    """Tests if file is found with a certain suffix.
+    @params:
+        file_path_no_suffix - Required : file path without file extension
+    @return: str    file extension or empty if not found"""
+    video_formats = ["avi", "mkv", "mov", "mp4", "mpjpeg", "webm"]
+    for suffix in video_formats:
+        media_file = Path(f"{file_path_no_suffix}.{suffix}")
+        if media_file.is_file():
+            return suffix
+    return ""
+
+
 # TODO: Scan filesystem for media files and add proper handling if none is found
-def parse_file_name(file, video_format):
-    """Replaces subtitle suffix with .mkv or user provided
-
-    Returns: absolute path to media file as str"""
-
-    path = os.path.dirname(os.path.abspath(file))
-    # regex rule for filename.default.eng.sdh.forced.srt
+def parse_file_name(input_file):
+    """Replaces subtitle suffix with video file extension while.
+    Removes subtitle naming flags in the process:
+        filename.default.eng.sdh.forced.srt to filename.mkv
+    @params:
+        file_path_no_suffix - Required : file path without file extension
+    @return:
+        str - absolute path to media file"""
+    directory = os.path.dirname(os.path.abspath(input_file))
+    # regex rule for filename.default.eng.sdh.forced.srt:
+    # ^(.*?)((?:\.default|\.forced)*(?:\.[a-z]{2,3}){0,2}(?:\.default|\.forced)*)(\.srt)$
     pattern = re.compile(
-        r"^(.*?)(((\.default)?(?:\.[a-z]{2,3}){0,2}(\.forced)?)\.srt)$"
+        r"^(.*?)((?:\.default|\.forced)*(?:\.[a-z]{2,3}){0,2}(?:\.default|\.forced)*)(\.srt)$"
     )
-    file_name_re = pattern.search(os.path.basename(file))
-    return f"{path}/{file_name_re.group(1)}.{video_format}"  # type: ignore
+    file_name_re = pattern.search(os.path.basename(input_file))
+    file_path_no_suffix = f"{directory}/{file_name_re.group(1)}"  # type: ignore
+    suffix = get_mediafile_format(file_path_no_suffix)
+    return f"{file_path_no_suffix}.{suffix}"
 
 
-# Print iterations progress
 def progress_bar(
     iteration,
     total,
@@ -255,25 +273,31 @@ def progress_bar(
 
 # TODO: srt2ass as a module and separate rest
 def main(arguments):
-    # pattern = re.compile(r"^(.*?)(\.[a-z]{2,3}\.srt|\.srt)$")
-    ffmpeg_detect = ff.GetMediaInformation()
+    err_subs_list = []
+    err_media_list = []
     media_file = ""
+    ffmpeg_detect = ff.GetMediaInformation()
     sorted_list = sorted(arguments.input_list)
     l = len(sorted_list)
-
     if not IS_SILENT:
         progress_bar(0, l, prefix="Progress:", suffix="Complete", length=50)
-
     # for file in progress_bar(sorted_list, l, "Progress:", "Complete", 1, 50, s):
     #   do stuff
     # time.sleep(0.1)
     for i, file in enumerate(sorted_list):
         if not Path(file).is_file():
-            print(f"Could not read file: {file}")
-            exit(1)
-        file_name = parse_file_name(file, arguments.video_format)
-        if file_name != media_file:
-            media_file = file_name
+            # Unable to read subs file
+            err_subs_list.append(f"{os.path.relpath(file)}")
+            continue
+        media_file_new = parse_file_name(file)
+        if not Path(media_file_new).is_file():
+            # Unable to find corresponding media file for input subs file
+            err_media_list.append(f"{os.path.relpath(media_file_new)}")
+            continue
+        # If processing multiple subs for the same media,
+        # skip ffmpeg_detect processing
+        if media_file != media_file_new:
+            media_file = media_file_new
             ffmpeg_detect.set_file_path(media_file)
         srt2ass(
             ffmpeg_detect,
@@ -288,6 +312,15 @@ def main(arguments):
             progress_bar(
                 i + 1, l, prefix="Progress:", suffix="Complete", length=50
             )
+    if len(err_subs_list) > 0:
+        print("\n\nCould not read files:\n")
+        for i in range(len(err_subs_list)):
+            print(f"{err_subs_list[i]}")
+    if len(err_media_list) > 0:
+        print("\n\nCouldn't find media files:\n")
+        for i in range(len(err_media_list)):
+            file = err_media_list[i]
+            print(f"{file.removesuffix(".")}")
 
 
 if __name__ == "__main__":
@@ -317,17 +350,9 @@ if __name__ == "__main__":
         required=False,
     )
     parser.add_argument(
-        "--format",
-        help="video file format, defaults to mkv",
-        default="mkv",
-        type=str,
-        dest="video_format",
-        required=False,
-    )
-    parser.add_argument(
         "-x",
         "--width",
-        help="override video width, won't use ffprobe",
+        help="override video width, skips ffprobe",
         type=int,
         dest="video_width",
         required=False,
@@ -335,7 +360,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-y",
         "--heigth",
-        help="override video heigth, won't use ffprobe",
+        help="override video heigth, skips ffprobe",
         type=int,
         dest="video_heigth",
         required=False,
