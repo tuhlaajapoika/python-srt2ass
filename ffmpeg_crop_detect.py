@@ -61,11 +61,11 @@ class MediaParser:
         self.__res_y = res_y
 
     def is_processed(self):
-        """Returns true if file is already processed, false otherwise"""
-        if not self.__res_x or not self.__res_y or not self.__bar_size:
-            return False
-        else:
+        """Returns boolean if file is already processed"""
+        if self.__res_x or self.__res_y or self.__bar_size:
             return True
+        else:
+            return False
 
     def crop_info(self):
         """Get vertical video resolution and cropping information using 'ffmpeg
