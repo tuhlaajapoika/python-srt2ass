@@ -209,8 +209,7 @@ def get_mediafile_format(file_path_no_suffix):
     @params:
         file_path_no_suffix - Required : file path without file extension
     @return: str    file extension or empty if not found"""
-    # video_formats = ["avi", "mkv", "mov", "mp4", "mpjpeg", "webm"]
-    video_formats = ["mkv"]
+    video_formats = ["avi", "mkv", "mov", "mp4", "mpjpeg", "webm"]
     for suffix in video_formats:
         media_file = Path(f"{file_path_no_suffix}.{suffix}")
         if media_file.is_file():
