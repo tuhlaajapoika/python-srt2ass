@@ -72,7 +72,9 @@ class MediaParser:
         cropdetect' and horizontal resolution using 'ffprobe'
 
         Returns None if successful, str error message otherwise"""
-
+        # TODO: if resx is too different from ffprobe value,
+        #   use different position: ffmpeg -ss 1200 vs ffmpeg -ss 300
+        #   (cropdetect crop=resx:resy:0:bar vs ffprobe res_x)
         if not self.is_processed():
             ## FFmpeg
             cmd_ffmpeg = [

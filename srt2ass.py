@@ -41,8 +41,12 @@ def get_header(
 ):
     if sub_position is None:  # Default subtitle position
         sub_position = 40
+    else:
+        sub_position = int(re.sub(r"\D", "", str(sub_position)))
     if sub_size is None:  # Default subtitle size
         sub_size = 16
+    else:
+        sub_size = int(re.sub(r"\D", "", str(sub_size)))
 
     ffmpeg_result = None
     # If res hasn't been set by user, try to parse values from media
@@ -276,9 +280,9 @@ def main(arguments):
     media_file = ""
     ffmpeg_detect = ff.MediaParser()
     sorted_list = sorted(arguments.input_list)
-    l = len(sorted_list)
+    ls_length = len(sorted_list)
     if not IS_SILENT:
-        progress_bar(0, l, prefix="Progress:", suffix="Complete", length=50)
+        progress_bar(0, ls_length, prefix="Progress:", suffix="Complete", length=50)
     # for file in progress_bar(sorted_list, l, "Progress:", "Complete", 1, 50, s):
     #   do stuff
     # time.sleep(0.1)
@@ -308,7 +312,7 @@ def main(arguments):
         if not IS_SILENT:
             time.sleep(0.1)
             progress_bar(
-                i + 1, l, prefix="Progress:", suffix="Complete", length=50
+                i + 1, ls_length, prefix="Progress:", suffix="Complete", length=50
             )
     if len(err_subs_list) > 0:
         print("\n\nCould not read files:\n")
