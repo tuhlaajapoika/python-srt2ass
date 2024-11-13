@@ -39,7 +39,13 @@ def file_open(input_file):
 def get_header(
     ffmpeg_detect, video_heigth, video_width, sub_position, sub_size, is_hdr
 ):
+    if sub_position is None:  # Default subtitle position
+        sub_position = 40
+    if sub_size is None:  # Default subtitle size
+        sub_size = 16
+
     ffmpeg_result = None
+    # If res hasn't been set by user, try to parse values from media
     if not video_heigth or not video_width:
         ffmpeg_result = ffmpeg_detect.crop_info()
     else:
@@ -115,13 +121,6 @@ def srt2ass(
     sub_position,
     sub_size,
 ):
-    # Default subtitle position
-    if sub_position is None:
-        sub_position = 24
-
-    # Default subtitle size
-    if sub_size is None:
-        sub_size = 16
 
     if ".ass" in input_file:
         return input_file

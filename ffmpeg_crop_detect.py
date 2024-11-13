@@ -128,12 +128,13 @@ class MediaParser:
             cmd_ffprobe_output = proc.stdout.read()  # type: ignore
             proc.stdout.flush()  # type: ignore
             res_x = cmd_ffprobe_output.strip()
+            res_x = re.sub(r"\D", "", res_x)
             try:
                 self.__res_x = int(res_x)
                 self.__res_y = (
-                    f"{int(result_crop_info[0]) + 2 * int(result_crop_info[1])}"
+                    f"{int(re.sub(r"\D", "", result_crop_info[0])) + 2 * int(re.sub(r"\D", "", result_crop_info[1]))}"
                 )
-                self.__bar_size = result_crop_info[1]
+                self.__bar_size = int(re.sub(r"\D", "", result_crop_info[1]))
                 return None
             except AttributeError as ex:
                 return f"Error parsing cropping information: {ex}"
