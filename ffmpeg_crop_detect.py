@@ -133,8 +133,10 @@ class MediaParser:
             res_x = re.sub(r"\D", "", res_x)
             try:
                 self.__res_x = int(res_x)
-                self.__res_y = (
-                    f"{int(re.sub(r"\D", "", result_crop_info[0])) + 2 * int(re.sub(r"\D", "", result_crop_info[1]))}"
+                # res_y_temp = int(re.sub(r"\D", "", result_crop_info[0])) + 2 * int(re.sub(r"\D", "", result_crop_info[1]))
+                self.__res_y = str(
+                    int(re.sub(r"\D", "", result_crop_info[0]))
+                    + 2 * int(re.sub(r"\D", "", result_crop_info[1]))
                 )
                 self.__bar_size = int(re.sub(r"\D", "", result_crop_info[1]))
                 return None
