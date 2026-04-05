@@ -11,7 +11,6 @@
 import argparse
 import re
 import sys
-import codecs
 import time
 import ffmpeg_crop_detect as ff
 from pathlib import Path, PurePath
@@ -27,7 +26,7 @@ def file_open(input_file):
     tmp = ""
     for enc in encodings:
         try:
-            with codecs.open(input_file, mode="r", encoding=enc) as fd:
+            with open(input_file, mode="r", encoding=enc) as fd:
                 tmp = fd.read()
                 break
         except UnicodeError:
